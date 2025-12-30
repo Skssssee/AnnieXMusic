@@ -2,7 +2,7 @@
 import asyncio
 import os
 import re
-from typing import Union
+from typing import Union, Tuple
 
 import aiohttp
 import yt_dlp
@@ -16,7 +16,7 @@ from youtubesearchpython import VideosSearch
 
 
 # =====================================================
-# CONFIG — ONLY YOUR AUDIO API
+# CONFIG
 # =====================================================
 
 AUDIO_API = "http://152.42.187.207:8000/audio"
@@ -33,10 +33,10 @@ def normalize_yt_url(link: str) -> str:
 
 
 # =====================================================
-# AUDIO — DIRECT API (NO FILE DOWNLOAD)
+# AUDIO — API BASED (RETURNS URL STRING)
 # =====================================================
 
-async def download_song(link: str) -> str | None:
+async def download_song(link: str) -> Union[str, None]:
     link = normalize_yt_url(link)
 
     async with aiohttp.ClientSession() as session:
@@ -50,21 +50,18 @@ async def download_song(link: str) -> str | None:
 
             data = await resp.json()
             if data.get("status") == "success":
-                # returns googlevideo URL
                 return data.get("audio")
 
     return None
 
 
 # =====================================================
-# VIDEO — LOCAL yt-dlp (UNCHANGED)
+# VIDEO — LOCAL yt-dlp (RETURNS FILE PATH)
 # =====================================================
 
-async def download_video(link: str) -> str | None:
-    video_id = link.split("v=")[-1].split("&")[0] if "v=" in link else link
-
-    if not video_id or len(video_id) < 3:
-        return None
+async def download_video(link: str) -> Union[str, None]:
+    link = normalize_yt_url(link)
+    video_id = link.split("v=")[-1].split("&")[0]
 
     DOWNLOAD_DIR = "downloads"
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -95,7 +92,7 @@ async def download_video(link: str) -> str | None:
 
 
 # =====================================================
-# SHELL CMD (AS IS)
+# SHELL CMD (UNCHANGED)
 # =====================================================
 
 async def shell_cmd(cmd):
@@ -113,7 +110,7 @@ async def shell_cmd(cmd):
 
 
 # =====================================================
-# YOUTUBE API CLASS
+# YOUTUBE API CLASS (BUG FIXED)
 # =====================================================
 
 class YouTubeAPI:
@@ -157,21 +154,32 @@ class YouTubeAPI:
                 "thumb": r["thumbnails"][0]["url"].split("?")[0],
             }, r["id"]
 
+    # -------------------------------
+    # 🔥 FIXED DOWNLOAD METHOD
+    # -------------------------------
     async def download(
         self,
         link: str,
-        mystic,
+        mystic=None,
         video: Union[bool, str] = None,
         videoid: Union[bool, str] = None,
         **_
-    ):
+    ) -> Tuple[Union[str, None], bool]:
+
         if videoid:
             link = self.base + link
 
         try:
             if video:
-                return await download_video(link), True
+                result = await download_video(link)
             else:
-                return await download_song(link), True
-        except Exception:
+                result = await download_song(link)
+
+            if not result:
+                return None, False
+
+            return result, True
+
+        except Exception as e:
+            LOGGER("YouTubeAPI").error(e)
             return None, False
