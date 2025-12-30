@@ -12,14 +12,11 @@ from pyrogram.types import Message
 from AnnieXMedia.utils.formatters import time_to_seconds
 from AnnieXMedia import LOGGER
 
-try:
-    from py_yt import VideosSearch
-except ImportError:
-    from youtubesearchpython.__future__ import VideosSearch
+from youtubesearchpython import VideosSearch
 
 
 # =====================================================
-# CONFIG (ONLY YOUR API)
+# CONFIG — ONLY YOUR AUDIO API
 # =====================================================
 
 AUDIO_API = "http://152.42.187.207:8000/audio"
@@ -36,7 +33,7 @@ def normalize_yt_url(link: str) -> str:
 
 
 # =====================================================
-# AUDIO — DIRECT API (NO FILE, NO SHRUTI)
+# AUDIO — DIRECT API (NO FILE DOWNLOAD)
 # =====================================================
 
 async def download_song(link: str) -> str | None:
@@ -53,6 +50,7 @@ async def download_song(link: str) -> str | None:
 
             data = await resp.json()
             if data.get("status") == "success":
+                # returns googlevideo URL
                 return data.get("audio")
 
     return None
@@ -155,6 +153,7 @@ class YouTubeAPI:
                 "link": r["link"],
                 "vidid": r["id"],
                 "duration_min": r["duration"],
+                "duration_sec": int(time_to_seconds(r["duration"])) if r["duration"] else 0,
                 "thumb": r["thumbnails"][0]["url"].split("?")[0],
             }, r["id"]
 
