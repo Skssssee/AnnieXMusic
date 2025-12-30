@@ -2,7 +2,7 @@
 import asyncio
 import os
 import re
-from typing import Union, Tuple
+from typing import Union
 
 import aiohttp
 import yt_dlp
@@ -11,7 +11,6 @@ from pyrogram.types import Message
 
 from AnnieXMedia.utils.formatters import time_to_seconds
 from AnnieXMedia import LOGGER
-
 from youtubesearchpython import VideosSearch
 
 
@@ -33,7 +32,8 @@ def normalize_yt_url(link: str) -> str:
 
 
 # =====================================================
-# AUDIO — API BASED (RETURNS URL STRING)
+# AUDIO (API BASED)
+# RETURNS: audio_url OR None
 # =====================================================
 
 async def download_song(link: str) -> Union[str, None]:
@@ -49,14 +49,12 @@ async def download_song(link: str) -> Union[str, None]:
                 return None
 
             data = await resp.json()
-            if data.get("status") == "success":
-                return data.get("audio")
-
-    return None
+            return data.get("audio") if data.get("status") == "success" else None
 
 
 # =====================================================
-# VIDEO — LOCAL yt-dlp (RETURNS FILE PATH)
+# VIDEO (LOCAL yt-dlp)
+# RETURNS: file_path OR None
 # =====================================================
 
 async def download_video(link: str) -> Union[str, None]:
@@ -92,7 +90,7 @@ async def download_video(link: str) -> Union[str, None]:
 
 
 # =====================================================
-# SHELL CMD (UNCHANGED)
+# SHELL CMD (AS IS)
 # =====================================================
 
 async def shell_cmd(cmd):
@@ -110,7 +108,7 @@ async def shell_cmd(cmd):
 
 
 # =====================================================
-# YOUTUBE API CLASS (BUG FIXED)
+# YOUTUBE API CLASS (🔥 NO BOOL RETURN 🔥)
 # =====================================================
 
 class YouTubeAPI:
@@ -152,11 +150,11 @@ class YouTubeAPI:
                 "duration_min": r["duration"],
                 "duration_sec": int(time_to_seconds(r["duration"])) if r["duration"] else 0,
                 "thumb": r["thumbnails"][0]["url"].split("?")[0],
-            }, r["id"]
+            }
 
-    # -------------------------------
-    # 🔥 FIXED DOWNLOAD METHOD
-    # -------------------------------
+    # -------------------------------------------------
+    # 🔥 ONLY RETURNS STRING OR NONE (NO BOOL)
+    # -------------------------------------------------
     async def download(
         self,
         link: str,
@@ -164,22 +162,16 @@ class YouTubeAPI:
         video: Union[bool, str] = None,
         videoid: Union[bool, str] = None,
         **_
-    ) -> Tuple[Union[str, None], bool]:
+    ) -> Union[str, None]:
 
         if videoid:
             link = self.base + link
 
         try:
             if video:
-                result = await download_video(link)
+                return await download_video(link)
             else:
-                result = await download_song(link)
-
-            if not result:
-                return None, False
-
-            return result, True
-
+                return await download_song(link)
         except Exception as e:
             LOGGER("YouTubeAPI").error(e)
-            return None, False
+            return None
