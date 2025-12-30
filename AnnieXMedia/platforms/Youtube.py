@@ -11,7 +11,7 @@ from typing import Union, Tuple
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
-from Tune.utils.formatters import time_to_seconds
+from AnnieXMedia.utils.formatters import time_to_seconds
 
 try:
     from youtubesearchpython.__future__ import VideosSearch
