@@ -44,4 +44,4 @@ yt-dlp[default]==2025.12.8
 git+https://github.com/CertifiedCoders/youtube-search-python
 youtube-search
 youtube-search-python
-py-yt-search
+py-yt
