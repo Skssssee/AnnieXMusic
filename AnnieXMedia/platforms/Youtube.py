@@ -1,4 +1,3 @@
-
 import asyncio
 import os
 import re
@@ -19,59 +18,14 @@ except ImportError:
 
 
 # =====================================================
-# CONFIG
+# CONFIG (ONLY YOUR API)
 # =====================================================
 
-API_AUDIO_URL = "http://152.42.187.207:8000/audio"
-
-API_URLS = []
-FALLBACK_API_URL = "https://shrutibots.site"
+AUDIO_API = "http://152.42.187.207:8000/audio"
 
 
 # =====================================================
-# LOAD API URLS (AS IS)
-# =====================================================
-
-async def load_api_urls():
-    global API_URLS
-    logger = LOGGER("ShrutiMusic.platforms.Youtube.py")
-
-    loaded_urls = []
-
-    for pb_id in ["rLsBhAQa", "FwwmTRED", "nfsHqXH2"]:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"https://pastebin.com/raw/{pb_id}",
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as response:
-                    if response.status == 200:
-                        url = (await response.text()).strip()
-                        if url:
-                            loaded_urls.append(url)
-        except Exception:
-            continue
-
-    if loaded_urls:
-        API_URLS = loaded_urls
-        logger.info(f"Loaded {len(API_URLS)} API URLs successfully")
-    else:
-        API_URLS = [FALLBACK_API_URL]
-        logger.info("Using fallback API URL")
-
-
-try:
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        asyncio.create_task(load_api_urls())
-    else:
-        loop.run_until_complete(load_api_urls())
-except RuntimeError:
-    pass
-
-
-# =====================================================
-# HELPER
+# HELPERS
 # =====================================================
 
 def normalize_yt_url(link: str) -> str:
@@ -81,13 +35,15 @@ def normalize_yt_url(link: str) -> str:
 
 
 # =====================================================
-# 🔥 NEW: FETCH AUDIO FROM YOUR API
+# AUDIO — DIRECT API (NO FILE, NO SHRUTI)
 # =====================================================
 
-async def fetch_audio_from_api(link: str) -> str | None:
+async def download_song(link: str) -> str | None:
+    link = normalize_yt_url(link)
+
     async with aiohttp.ClientSession() as session:
         async with session.get(
-            API_AUDIO_URL,
+            AUDIO_API,
             params={"url": link},
             timeout=aiohttp.ClientTimeout(total=10),
         ) as resp:
@@ -102,23 +58,7 @@ async def fetch_audio_from_api(link: str) -> str | None:
 
 
 # =====================================================
-# ✅ REPLACED: download_song (API BASED)
-# =====================================================
-
-async def download_song(link: str) -> str | None:
-    link = normalize_yt_url(link)
-
-    audio_url = await fetch_audio_from_api(link)
-    if not audio_url:
-        return None
-
-    # IMPORTANT:
-    # returning googlevideo URL (NOT file path)
-    return audio_url
-
-
-# =====================================================
-# VIDEO (UNCHANGED – FILE BASED)
+# VIDEO — LOCAL yt-dlp (UNCHANGED)
 # =====================================================
 
 async def download_video(link: str) -> str | None:
@@ -165,16 +105,16 @@ async def shell_cmd(cmd):
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    out, errorz = await proc.communicate()
-    if errorz:
-        if "unavailable videos are hidden" in errorz.decode().lower():
+    out, err = await proc.communicate()
+    if err:
+        if "unavailable videos are hidden" in err.decode().lower():
             return out.decode()
-        return errorz.decode()
+        return err.decode()
     return out.decode()
 
 
 # =====================================================
-# YOUTUBE API CLASS (MOSTLY AS IS)
+# YOUTUBE API CLASS
 # =====================================================
 
 class YouTubeAPI:
@@ -189,11 +129,11 @@ class YouTubeAPI:
         return bool(re.search(self.regex, link))
 
     async def url(self, message: Message) -> Union[str, None]:
-        messages = [message]
+        msgs = [message]
         if message.reply_to_message:
-            messages.append(message.reply_to_message)
+            msgs.append(message.reply_to_message)
 
-        for msg in messages:
+        for msg in msgs:
             if msg.entities:
                 for ent in msg.entities:
                     if ent.type == MessageEntityType.URL:
